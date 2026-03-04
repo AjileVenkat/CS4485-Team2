@@ -20,19 +20,20 @@ def create_channels_table(sample, id):
             'Alpha Power': sample_data[i, raw_alpha].mean(),
             'Theta Power': sample_data[i, raw_theta].mean(),
             'Delta Power': sample_data[i, raw_delta].mean(),
+            'Beta Power': sample_data[i, raw_beta].mean(),
         })
     return pd.DataFrame(rows)
 
 if __name__ == "__main__":
     # Get one AD and one control sample
     ad_sample = mne.io.read_raw_eeglab("ds004504/sub-001/eeg/sub-001_task-eyesclosed_eeg.set", preload=True)
-    control_sample = mne.io.read_raw_eeglab("ds004504/sub-065/eeg/sub-065_task-eyesclosed_eeg.set", preload=True)
+    control_sample = mne.io.read_raw_eeglab("ds004504/sub-037/eeg/sub-037_task-eyesclosed_eeg.set", preload=True)
     
     
 
     # Paths to display ID in graphs
     ad_path = "ds004504/sub-001/eeg/sub-001_task-eyesclosed_eeg.set"
-    control_path = "ds004504/sub-065/eeg/sub-065_task-eyesclosed_eeg.set"
+    control_path = "ds004504/sub-037/eeg/sub-037_task-eyesclosed_eeg.set"
 
     ad_id = os.path.basename(ad_path).split('_')[0]
     control_id = os.path.basename(control_path).split('_')[0]
@@ -76,6 +77,27 @@ if __name__ == "__main__":
     axes[1].set_title(f"Control Healthy Sample ({control_id}) - Channel {target_channel}")
     axes[1].set_ylabel("Amplitude (uV)")
     axes[1].set_xlabel("Time (seconds)")
+
+    ad_means = ad_dataframe[['Delta Power', 'Theta Power', 'Alpha Power', 'Beta Power']].mean()
+    control_means = control_dataframe[['Delta Power', 'Theta Power', 'Alpha Power', 'Beta Power']].mean()
+
+    categories = ['Delta', 'Theta', 'Alpha', 'Beta']
+    ad_values = [ad_means['Delta Power'], ad_means['Theta Power'], ad_means['Alpha Power'], ad_means['Beta Power']]
+    control_values = [control_means['Delta Power'], control_means['Theta Power'], control_means['Alpha Power'], control_means['Beta Power']]
+    
+    plt.figure(figsize=(10, 6))
+    x = range(len(categories))
+    width = 0.35
+    plt.bar([i - width/2 for i in x], ad_values, width, label = f'AD ({ad_id})', color = 'black')
+    plt.bar([i + width/2 for i in x], control_values, width, label = f'Control ({control_id})', color = 'red')
+    
+    plt.yscale('log')
+    plt.ylabel('Mean Power')
+    plt.title('Brain Power Comparison: AD vs Control')
+    plt.xticks(x, categories)
+    plt.legend()
+    plt.grid(axis = 'y', linestyle='--', alpha=0.7)
+    
 
     plt.tight_layout()
     plt.show()
