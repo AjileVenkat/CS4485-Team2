@@ -3,7 +3,7 @@ import mne
 
 # Load EEG data for first subject only (for test, I will load all 88 subjects soon)
 # Filter out extremely low noises and extreme high noises (comes from external factors such as sweating or electrical noise)
-raw_data = mne.io.read_raw_eeglab("ds004504/sub-001/eeg/sub-001_task-eyesclosed_eeg.set", preload=True)
+raw_data = mne.io.read_raw_eeglab("ds004504-download/sub-001/eeg/sub-001_task-eyesclosed_eeg.set", preload=True)
 raw_data.filter(1.0, 40.0)
 
 # Calculate power spectral density, gather frequency for each channel

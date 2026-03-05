@@ -1,5 +1,31 @@
 ds004504/
+ds004504-download/
 *.fdt
 *.set
+*.vhdr
+*.vmrk
+*.eeg
+*.bdf
+*.edf
+*.csv
+*.tsv
 __pycache__/
 .ipynb_checkpoints/
+
+# Python artifacts
+venv/
+.env
+.venv
+*.pyc
+*.pyo
+*.pyd
+
+# VS Code
+.vscode/
+
+# Results and images (keep these tracked if needed)
+!images/
+!data/*.csv
+
+# Do not ignore code files
+!*.py
