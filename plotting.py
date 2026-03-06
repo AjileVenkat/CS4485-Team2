@@ -2,6 +2,7 @@ import mne
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
+import numpy as np
 
 def create_channels_table(sample, id):
     # Compute PSD for all 19 channels with the Welch method
@@ -29,8 +30,6 @@ if __name__ == "__main__":
     ad_sample = mne.io.read_raw_eeglab("ds004504/sub-001/eeg/sub-001_task-eyesclosed_eeg.set", preload=True)
     control_sample = mne.io.read_raw_eeglab("ds004504/sub-037/eeg/sub-037_task-eyesclosed_eeg.set", preload=True)
     
-    
-
     # Paths to display ID in graphs
     ad_path = "ds004504/sub-001/eeg/sub-001_task-eyesclosed_eeg.set"
     control_path = "ds004504/sub-037/eeg/sub-037_task-eyesclosed_eeg.set"
@@ -88,8 +87,8 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 6))
     x = range(len(categories))
     width = 0.35
-    plt.bar([i - width/2 for i in x], ad_values, width, label = f'AD ({ad_id})', color = 'black')
-    plt.bar([i + width/2 for i in x], control_values, width, label = f'Control ({control_id})', color = 'red')
+    plt.bar([i - width/2 for i in x], ad_values, width, label = f'AD', color = 'black')
+    plt.bar([i + width/2 for i in x], control_values, width, label = f'Control', color = 'red')
     
     plt.yscale('log')
     plt.ylabel('Mean Power')
