@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import numpy as np
+from scipy import stats
 
 def create_channels_table(sample, id):
     # Compute PSD for all 19 channels with the Welch method
@@ -24,6 +25,18 @@ def create_channels_table(sample, id):
             'Beta Power': sample_data[i, raw_beta].mean(),
         })
     return pd.DataFrame(rows)
+
+def ttest(ad, control, band):
+    t_stat, p_val = stats.ttest_ind(ad, control)
+    print(f"--- {band} Stats ---")
+    print(f"Mean AD: {ad.mean():.4e}")
+    print(f"Mean Control: {control.mean():.4e}")
+    print(f"T-Stats: {t_stat:.4e}")
+    print(f"P-Value: {p_val:.4e}")
+    if p_val < 0.05:
+        print("Result has significant difference.\n")
+    else:
+        print("Result: Result has no difference.\n")
 
 if __name__ == "__main__":
     data_dir = "ds004504"
@@ -76,7 +89,27 @@ if __name__ == "__main__":
     plt.xticks(x, categories)
     plt.legend()
     plt.grid(axis = 'y', linestyle='--', alpha=0.7)
-    
+
+    ad_subject_avg = [df[['Alpha Power', 'Theta Power', 'Delta Power', 'Beta Power']].mean() for df in ad_datas]
+    control_subject_avg = [df[['Alpha Power', 'Theta Power', 'Delta Power', 'Beta Power']].mean() for df in control_datas]
+
+    ad_subject_dframe = pd.DataFrame(ad_subject_avg)
+    control_subject_dframe = pd.DataFrame(control_subject_avg)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    axes[0].boxplot([ad_subject_dframe['Alpha Power'], control_subject_dframe['Alpha Power']], labels=['AD', 'Control'])
+    axes[0].set_title('Alpha Power Distribution')
+    axes[0].set_ylabel('Absolute Power')
+    axes[0].set_yscale('log')
+
+    axes[1].boxplot([ad_subject_dframe['Theta Power'], control_subject_dframe['Theta Power']], labels=['AD', 'Control'])
+    axes[1].set_title('Theta Power Distribution')
+    axes[1].set_ylabel('Absolute Power')
+    axes[1].set_yscale('log')
 
     plt.tight_layout()
     plt.show()
+
+    ttest(ad_subject_dframe['Alpha Power'], control_subject_dframe['Alpha Power'], "Alpha")
+    ttest(ad_subject_dframe['Theta Power'], control_subject_dframe['Theta Power'], "Theta")
