@@ -27,8 +27,12 @@ def create_channels_table(sample, id):
 
 if __name__ == "__main__":
     data_dir = "ds004504"
+
+    # Hold dataframes for AD and control groups
     ad_datas = []
     control_datas = []
+
+    # Assugb subject numbers to respective groups
     for id in sorted(os.listdir(data_dir)):
         if not id.startswith("sub-"):
             continue
@@ -43,12 +47,13 @@ if __name__ == "__main__":
             else:
                 control_datas.append(current_dframe)
     
+    # Find the mean frequency per channel of each group
     ad_grouped = pd.concat(ad_datas).drop(columns=['Subject']).groupby('Channel').mean().reset_index()
     control_grouped = pd.concat(control_datas).drop(columns=['Subject']).groupby('Channel').mean().reset_index()
     
+    # Record results in table
     with open("Task2_table.txt","w") as f:
         f.write("Average Band Power Per Channel: AD vs Control\n")
-        f.write("\n" + "="*70)
         f.write(f"\n{'Subject':<10} | {'Channel':<7} | {'Alpha Power':<11} | {'Theta Power':<11} | {'Delta Power':<11}\n")
         f.write("-" * 70 + "\n")
         
@@ -64,6 +69,7 @@ if __name__ == "__main__":
 
     categories = ['Delta', 'Theta', 'Alpha', 'Beta']
 
+    # Record mean power per bands for all subjects in AD and control groups
     plt.figure(figsize=(10, 6))
     x = range(len(categories))
     width = 0.35

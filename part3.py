@@ -26,8 +26,9 @@ def create_channels_table(sample, id):
         })
     return pd.DataFrame(rows)
 
+# Independent T-Test with band dataframes
 def ttest(ad, control, band):
-    t_stat, p_val = stats.ttest_ind(ad, control)
+    t_stat, p_val = stats.ttest_ind(ad, control, equal_var=False)
     print(f"--- {band} Stats ---")
     print(f"Mean AD: {ad.mean():.4e}")
     print(f"Mean Control: {control.mean():.4e}")
@@ -36,12 +37,16 @@ def ttest(ad, control, band):
     if p_val < 0.05:
         print("Result has significant difference.\n")
     else:
-        print("Result: Result has no difference.\n")
+        print("Result: Result has no significant difference.\n")
 
 if __name__ == "__main__":
     data_dir = "ds004504"
+
+    # Hold dataframes for AD and control groups
     ad_datas = []
     control_datas = []
+
+    # Assign subject numbers to respective groups
     for id in sorted(os.listdir(data_dir)):
         if not id.startswith("sub-"):
             continue
@@ -93,9 +98,11 @@ if __name__ == "__main__":
     ad_subject_avg = [df[['Alpha Power', 'Theta Power', 'Delta Power', 'Beta Power']].mean() for df in ad_datas]
     control_subject_avg = [df[['Alpha Power', 'Theta Power', 'Delta Power', 'Beta Power']].mean() for df in control_datas]
 
+    # Find the global mean of all channels in every subject
     ad_subject_dframe = pd.DataFrame(ad_subject_avg)
     control_subject_dframe = pd.DataFrame(control_subject_avg)
 
+    # Create a box plot recording  average powers
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     axes[0].boxplot([ad_subject_dframe['Alpha Power'], control_subject_dframe['Alpha Power']], labels=['AD', 'Control'])
@@ -111,5 +118,6 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
+    # T-Test
     ttest(ad_subject_dframe['Alpha Power'], control_subject_dframe['Alpha Power'], "Alpha")
     ttest(ad_subject_dframe['Theta Power'], control_subject_dframe['Theta Power'], "Theta")
