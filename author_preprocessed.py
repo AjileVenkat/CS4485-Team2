@@ -1,6 +1,7 @@
 """
-Task 2: Frequency Analysis and Band Power
+Task 2: Frequency Analysis and Band Power (Authors' Preprocessed Derivatives)
 - Computes PSD via Welch method for ALL AD and Control subjects
+- Uses authors' preprocessed files (ASR + ICA cleaned) from derivatives/
 - Extracts Delta (1-4), Theta (4-8), Alpha (8-13), Beta (13-30) band power
 - Produces per-channel table and group-average comparison with bar chart
 
@@ -22,9 +23,10 @@ mne.set_log_level('WARNING')
 
 # Module-level constants
 DATASET_DIR = "ds004504-download"
+DERIV_DIR   = "ds004504-download/derivatives"   # authors' preprocessed files
 IMAGES_DIR  = "images"
 DATA_DIR    = "data"
-CACHE_DIR   = "cache"         
+CACHE_DIR   = "cache_authors"                   # authors' pipeline cache
 
 GROUP_LABEL = {"A": "Alzheimer's Disease", "C": "Control"}
 
@@ -38,19 +40,20 @@ BANDS = {
 
 def compute_band_power(subject_id: str, group: str) -> pd.DataFrame:
     """
-    Load EEG for one subject, preprocess, compute Welch PSD,
+    Load authors' preprocessed EEG for one subject, epoch, compute Welch PSD,
     return per-channel band-power DataFrame.
 
-    Preprocessing pipeline:
-      1. Band-pass filter 1-40 Hz  (removes DC drift and high-freq noise)
-      2. Average re-reference       (standard for EEG group comparisons)
+    Authors' preprocessing (already applied via ASR + ICA):
+      1. Artifact Subspace Reconstruction (ASR) for transient artifact removal
+      2. Independent Component Analysis (ICA) for ocular/muscle artifact removal
+    My additions on top:
       3. Epoch into 2-second windows with 0.5s overlap
-      4. Reject epochs with any channel exceeding 150 µV (artifact removal)
+      4. Reject any remaining epochs exceeding 150 µV
       5. Welch PSD on clean epochs, averaged across epochs
       6. Band power = area under PSD curve (Simpson's rule)
     """
     eeg_path = os.path.join(
-        DATASET_DIR, subject_id, "eeg",
+        DERIV_DIR, subject_id, "eeg",
         f"{subject_id}_task-eyesclosed_eeg.set"
     )
     if not os.path.exists(eeg_path):
@@ -59,36 +62,29 @@ def compute_band_power(subject_id: str, group: str) -> pd.DataFrame:
 
     raw = mne.io.read_raw_eeglab(eeg_path, preload=True, verbose=False)
 
-    # Preprocess Dataset 
-
     cache_path = os.path.join(CACHE_DIR, f"{subject_id}_epo.fif")
 
     if os.path.exists(cache_path):
-        # Cache hit: skip preprocessing entirely on re-runs
+        # Cache hit: skip epoching on re-runs
         epochs = mne.read_epochs(cache_path, preload=True, verbose=False)
     else:
-        # 1. Band-pass filter: remove slow drift and high-freq noise
-        raw.filter(l_freq=1.0, h_freq=40.0, verbose=False)
-
-        # 2. Average reference
-        raw.set_eeg_reference('average', projection=False, verbose=False)
-
-        # 3. Epoch into fixed-length segments
+        # No filter or re-reference — authors' ASR + ICA already handled this
+        # Epoch into fixed-length segments
         epochs = mne.make_fixed_length_epochs(
             raw, duration=2.0, overlap=0.5, preload=True, verbose=False
         )
 
-        # 4. Reject epochs that exceed amplitude threshold (artifacts)
+        # Reject any remaining epochs that exceed amplitude threshold
         epochs.drop_bad(reject={'eeg': 150e-6}, verbose=False)
 
-        # Save to cache so next run skips all preprocessing for this subject
+        # Save to cache so next run skips epoching for this subject
         epochs.save(cache_path, overwrite=True, verbose=False)
 
     if len(epochs) == 0:
         print(f"  [SKIP] all epochs rejected for {subject_id}")
         return pd.DataFrame()
 
-    # 5. Welch PSD on clean epochs
+    # Welch PSD on clean epochs
     psd        = epochs.compute_psd(method="welch", fmin=1, fmax=30, verbose=False)
     psd_data   = psd.get_data().mean(axis=0)   # average across epochs → (n_ch, n_freqs)
     freqs      = psd.freqs
@@ -99,7 +95,7 @@ def compute_band_power(subject_id: str, group: str) -> pd.DataFrame:
         row = {"Subject": subject_id, "Group": GROUP_LABEL[group], "Channel": ch_name}
         for band_name, (fmin, fmax) in BANDS.items():
             mask = (freqs >= fmin) & (freqs <= fmax)
-            # Area under PSD curve
+            # Area under PSD curve (correct band power)
             row[f"{band_name} Power"] = simpson(psd_data[ch_idx, mask], dx=freq_res)
         rows.append(row)
 
@@ -200,7 +196,7 @@ if __name__ == "__main__":
     ax.bar(x + width/2, ctrl_vals, width, label="Control",             color="#6BAED6")
 
     ax.set_ylabel("Average Power (V\u00b2/Hz)", fontsize=11)
-    ax.set_title("Average EEG Band Power: Alzheimer's Disease vs Control",
+    ax.set_title("Average EEG Band Power: Alzheimer's Disease vs Control\n(Authors' Preprocessing)",
                  fontsize=12, fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels(band_labels, fontsize=10)
@@ -208,7 +204,7 @@ if __name__ == "__main__":
     ax.set_yscale("log")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     plt.tight_layout()
-    chart_path = os.path.join(IMAGES_DIR, "Group_Band_Power_Comparison.png")
+    chart_path = os.path.join(IMAGES_DIR, "Group_Band_Power_Comparison_Authors.png")
     plt.savefig(chart_path, dpi=150)
     print(f"\nSaved → {chart_path}")
     plt.show()
@@ -222,8 +218,8 @@ if __name__ == "__main__":
         .mean()
         .reset_index()
     )
-    subject_avg.to_csv(os.path.join(DATA_DIR, "Power_Comparison_SubjectAvg.csv"), index=False)
-    print(f"\nSaved → {DATA_DIR}/Power_Comparison_SubjectAvg.csv  ({len(subject_avg)} rows)")
+    subject_avg.to_csv(os.path.join(DATA_DIR, "Power_Comparison_SubjectAvg_Authors.csv"), index=False)
+    print(f"\nSaved → {DATA_DIR}/Power_Comparison_SubjectAvg_Authors.csv  ({len(subject_avg)} rows)")
 
     print("\n" + "=" * 75)
     print("  Per-Subject Mean Band Power (averaged across all channels)")
@@ -251,11 +247,11 @@ if __name__ == "__main__":
         bp["boxes"][0].set_facecolor("#E07070")
         bp["boxes"][1].set_facecolor("#6BAED6")
         ax.set_ylabel("Mean Power (V²/Hz)", fontsize=11)
-        ax.set_title(f"{band_name}: Alzheimer's Disease vs Control",
+        ax.set_title(f"{band_name}: Alzheimer's Disease vs Control\n(Authors' Preprocessing)",
                      fontsize=12, fontweight="bold")
         ax.grid(axis="y", linestyle="--", alpha=0.4)
         plt.tight_layout()
-        fname = band_name.replace(" ", "_") + "_Boxplot.png"
+        fname = band_name.replace(" ", "_") + "_Boxplot_Authors.png"
         fpath = os.path.join(IMAGES_DIR, fname)
         plt.savefig(fpath, dpi=150)
         print(f"Saved → {fpath}")
@@ -274,7 +270,7 @@ if __name__ == "__main__":
     for band in band_cols:
         ad_vals   = ad_subjects[band].values
         ctrl_vals = ctrl_subjects[band].values
-        # Log-transform before t-test (added)
+        # Log-transform before t-test
         t_stat, p_val = stats.ttest_ind(np.log(ad_vals), np.log(ctrl_vals), equal_var=False)
         ad_mean   = ad_vals.mean()
         ctrl_mean = ctrl_vals.mean()

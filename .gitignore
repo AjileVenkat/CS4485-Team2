@@ -27,5 +27,9 @@ venv/
 !images/
 !data/*.csv
 
+# cache for faster loading per runs 
+cache/
+cache_authors/
+
 # Do not ignore code files
 !*.py
