@@ -6,4 +6,4 @@ raw_eeg = mne.io.read_raw_eeglab(eeg_file_raw, preload=True)
 
 print(raw_eeg .info)
 
-raw_eeg .plot()
+raw_eeg.plot()
