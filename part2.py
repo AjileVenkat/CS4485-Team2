@@ -32,7 +32,7 @@ if __name__ == "__main__":
     ad_datas = []
     control_datas = []
 
-    # Assugb subject numbers to respective groups
+    # Assign subject numbers to respective groups
     for id in sorted(os.listdir(data_dir)):
         if not id.startswith("sub-"):
             continue
