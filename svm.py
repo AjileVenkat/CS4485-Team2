@@ -1,67 +1,89 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, cross_validate
-from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GroupKFold, cross_val_predict
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import classification_report, confusion_matrix
+from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
+from sklearn.decomposition import PCA
+from sklearn.base import BaseEstimator, ClassifierMixin
 
-# 1. Setup remain the same
-pipeline = Pipeline([
-    ('scaler', StandardScaler()),
-    ('svm', SVC(probability=True, random_state=42, class_weight="balanced"))
-])
+class HierarchicalDementiaClassifier(BaseEstimator, ClassifierMixin):
+    def __init__(self, C=1.0, gamma='scale', n_components=0.90):
+        self.C = C
+        self.gamma = gamma
+        self.n_components = n_components
+        
+        # GATE 1: Healthy vs. All Dementia (Broad Net)
+        self.gate1 = ImbPipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=self.n_components)),
+            ('smote', SMOTE(random_state=42)),
+            ('svm', SVC(C=self.C, kernel='rbf', gamma=self.gamma, class_weight='balanced'))
+        ])
+        
+        # GATE 2: AD vs. FTD (The Specialist)
+        self.gate2 = ImbPipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=self.n_components)),
+            ('smote', SMOTE(random_state=42)),
+            ('svm', SVC(C=self.C, kernel='rbf', gamma=self.gamma, class_weight='balanced'))
+        ])
 
-parameters = {
-    'svm__C': [0.1, 1, 10, 100],
-    'svm__kernel': ['rbf', 'poly', 'sigmoid', 'linear'],
-    'svm__gamma': ['scale', 'auto']
-}
+    def fit(self, X, y):
+        # Training Gate 1: 0 is Healthy, 1 is Dementia (AD/FTD combined)
+        y_binary = (y != 0).astype(int)
+        self.gate1.fit(X, y_binary)
+        
+        # Training Gate 2: Only on Dementia subjects
+        mask = (y != 0)
+        self.gate2.fit(X[mask], y[mask])
+        return self
 
-def test_binary_pairs(df):
-    pairs = [
-        ((0, 2), "Healthy vs AD"),
-        ((0, 1), "Healthy vs FTD"),
-        ((1, 2), "AD vs FTD")
-    ]
+    def predict(self, X):
+        # Step 1: Is it dementia?
+        is_dementia = self.gate1.predict(X)
+        final_preds = np.zeros(len(X))
+        
+        for i in range(len(X)):
+            if is_dementia[i] == 0:
+                final_preds[i] = 0 # Classified as Healthy
+            else:
+                # Step 2: Which type?
+                row = X.iloc[[i]]
+                final_preds[i] = self.gate2.predict(row)[0]
+        return final_preds
+
+def run_final_test(df):
+    X = df.drop(columns=['Subject_ID', 'Group'])
+    y = df['Group']
+    groups = df['Subject_ID']
+
+    # Using the optimized parameters from your previous grid search
+    model = HierarchicalDementiaClassifier(C=0.1, gamma=0.01, n_components=0.90)
     
-    for (g1, g2), name in pairs:
-        pair_df = df[df['Group'].isin([g1, g2])].dropna()
-        X_p = pair_df.drop(columns=['Subject_ID', 'Group'])
-        y_p = pair_df['Group']
-        
-        # We need to map y_p to 0 and 1 for the scorers to work correctly
-        y_p_mapped = (y_p == g2).astype(int) 
+    gkf = GroupKFold(n_splits=5)
+    
+    print("Executing Hierarchical Classification with Group-Wise splits...")
+    y_pred = cross_val_predict(model, X, y, cv=gkf, groups=groups)
 
-        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        
-        # Define the scoring dictionary for CV
-        scoring = {
-            'accuracy': 'accuracy',
-            'f1': 'f1',
-            'precision': 'precision',
-            'recall': 'recall'
-        }
+    print("\n--- Final Results (Filtered + Hierarchical) ---")
+    print(classification_report(y, y_pred, target_names=['Healthy', 'FTD', 'AD']))
+    print("Confusion Matrix:")
+    print(confusion_matrix(y, y_pred))
+    # Create a summary dataframe
+    results_df = pd.DataFrame({'Subject_ID': groups, 'Actual': y, 'Predicted': y_pred})
 
-        # Run GridSearch to find best params on the whole set
-        search = GridSearchCV(pipeline, param_grid=parameters, cv=skf, scoring='accuracy')
-        search.fit(X_p, y_p_mapped)
-        
-        # 2. THE KEY CHANGE: Run Cross-Validation on the best model
-        cv_results = cross_validate(search.best_estimator_, X_p, y_p_mapped, cv=skf, scoring=scoring)
+# Group by Subject and take the most frequent prediction (Majority Vote)
+    subject_results = results_df.groupby('Subject_ID').agg(lambda x: x.value_counts().index[0])
 
-        print(f"--- {name} (5-Fold CV Averages) ---")
-        print(f"Best Params: {search.best_params_}")
-        print(f"Accuracy:  {cv_results['test_accuracy'].mean():.2%} (+/- {cv_results['test_accuracy'].std():.2%})")
-        print(f"F1 Score:  {cv_results['test_f1'].mean():.2%}")
-        print(f"Precision: {cv_results['test_precision'].mean():.2%}")
-        print(f"Recall:    {cv_results['test_recall'].mean():.2%}")
-        print("-" * 30 + "\n")
+    print("\n--- SUBJECT-LEVEL RESULTS (Majority Vote) ---")
+    print(classification_report(subject_results['Actual'], subject_results['Predicted'], 
+                            target_names=['Healthy', 'FTD', 'AD']))
 
-# 3. Load and Run
 if __name__ == "__main__":
     data = pd.read_csv("AD_Feature_Matrix.csv")
-    mi_cols = [c for c in data.columns if "Corr_" in c]
-    data[mi_cols] = np.log1p(data[mi_cols])
+    run_final_test(data)
+
     
-    test_binary_pairs(data)
