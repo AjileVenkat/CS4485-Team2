@@ -65,17 +65,20 @@ def features_extraction(epoch_data, id, md_row, sfreq):
     return feature
 
 if __name__ == "__main__":
-    dir = "ds004504"
+    root_dir = "ds004504"
+    derivatives_dir = os.path.join(root_dir, "derivatives")
+    participants_file = os.path.join(root_dir, "participants.tsv") # Look in root, not derivatives
     rows = []
-    md_df = pd.read_csv(os.path.join(dir, "participants.tsv"), sep='\t').set_index('participant_id')
-    for i in sorted(os.listdir(dir)):
+
+    md_df = pd.read_csv(participants_file, sep='\t').set_index('participant_id')
+    for i in sorted(os.listdir(derivatives_dir)):
         if not i.startswith("sub-"):
             continue
         
         
         # Load .set files and create an entry per subject
         sub_num = int(i.split('-')[1])
-        path = os.path.join(dir, i, 'eeg', f"{i}_task-eyesclosed_eeg.set")
+        path = os.path.join(derivatives_dir, i, 'eeg', f"{i}_task-eyesclosed_eeg.set")
         if os.path.exists(path):
             print(f"Epoching {i}...")
             print(f"Extracting features for {i}...")
@@ -110,5 +113,5 @@ if __name__ == "__main__":
     
     # Create a csv file containing these separate band frequencies and groups
     feat_matrix = pd.DataFrame(rows)
-    feat_matrix.to_csv("AD_Feature_Matrix.csv", index=False)
+    feat_matrix.to_csv("AD_Feature_Matrix2.csv", index=False)
     print("Created feature matrix!")

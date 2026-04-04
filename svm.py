@@ -1,89 +1,79 @@
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import GroupKFold, cross_val_predict
+import joblib
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    StratifiedKFold,
+    RepeatedStratifiedKFold,
+    cross_val_score
+)
+from sklearn.svm import SVC # Swapped from RandomForest
+from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.metrics import classification_report, confusion_matrix
-from imblearn.over_sampling import SMOTE
-from imblearn.pipeline import Pipeline as ImbPipeline
-from sklearn.decomposition import PCA
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer # Add this import at the top
 
-class HierarchicalDementiaClassifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, C=1.0, gamma='scale', n_components=0.90):
-        self.C = C
-        self.gamma = gamma
-        self.n_components = n_components
-        
-        # GATE 1: Healthy vs. All Dementia (Broad Net)
-        self.gate1 = ImbPipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=self.n_components)),
-            ('smote', SMOTE(random_state=42)),
-            ('svm', SVC(C=self.C, kernel='rbf', gamma=self.gamma, class_weight='balanced'))
-        ])
-        
-        # GATE 2: AD vs. FTD (The Specialist)
-        self.gate2 = ImbPipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=self.n_components)),
-            ('smote', SMOTE(random_state=42)),
-            ('svm', SVC(C=self.C, kernel='rbf', gamma=self.gamma, class_weight='balanced'))
-        ])
+# Load feature matrix
+dFrame = pd.read_csv("AD_Feature_Matrix2.csv")
+dFrame.columns = dFrame.columns.str.strip()
 
-    def fit(self, X, y):
-        # Training Gate 1: 0 is Healthy, 1 is Dementia (AD/FTD combined)
-        y_binary = (y != 0).astype(int)
-        self.gate1.fit(X, y_binary)
-        
-        # Training Gate 2: Only on Dementia subjects
-        mask = (y != 0)
-        self.gate2.fit(X[mask], y[mask])
-        return self
+# Features and target
+X = dFrame.drop(columns=['Subject_ID', 'Group'])
+y = dFrame['Group']
 
-    def predict(self, X):
-        # Step 1: Is it dementia?
-        is_dementia = self.gate1.predict(X)
-        final_preds = np.zeros(len(X))
-        
-        for i in range(len(X)):
-            if is_dementia[i] == 0:
-                final_preds[i] = 0 # Classified as Healthy
-            else:
-                # Step 2: Which type?
-                row = X.iloc[[i]]
-                final_preds[i] = self.gate2.predict(row)[0]
-        return final_preds
+# Train/test split (Exact same as your friend's)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, 
+    y, 
+    test_size=0.2, 
+    random_state=42, 
+    stratify=y
+)
 
-def run_final_test(df):
-    X = df.drop(columns=['Subject_ID', 'Group'])
-    y = df['Group']
-    groups = df['Subject_ID']
+# Pipeline - Swapping 'rf' for 'svc'
+pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='mean')), # This fixes the NaN error automatically
+    ('selector', VarianceThreshold(threshold=0.0)),
+    ('scaler', StandardScaler()), 
+    ('svc', SVC(random_state=42, class_weight='balanced', probability=True))
+])
 
-    # Using the optimized parameters from your previous grid search
-    model = HierarchicalDementiaClassifier(C=0.1, gamma=0.01, n_components=0.90)
-    
-    gkf = GroupKFold(n_splits=5)
-    
-    print("Executing Hierarchical Classification with Group-Wise splits...")
-    y_pred = cross_val_predict(model, X, y, cv=gkf, groups=groups)
+# Parameter grid - SVM specific settings
+parameters = {
+    'svc__C': [0.1, 1, 10, 100],          # Regularization (how much you penalize errors)
+    'svc__gamma': ['scale', 'auto', 0.01], # Kernel coefficient (how "curvy" the boundary is)
+    'svc__kernel': ['rbf', 'linear']       # The shape of the decision boundary
+}
 
-    print("\n--- Final Results (Filtered + Hierarchical) ---")
-    print(classification_report(y, y_pred, target_names=['Healthy', 'FTD', 'AD']))
-    print("Confusion Matrix:")
-    print(confusion_matrix(y, y_pred))
-    # Create a summary dataframe
-    results_df = pd.DataFrame({'Subject_ID': groups, 'Actual': y, 'Predicted': y_pred})
+# Grid search (Exact same CV logic)
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-# Group by Subject and take the most frequent prediction (Majority Vote)
-    subject_results = results_df.groupby('Subject_ID').agg(lambda x: x.value_counts().index[0])
+search = GridSearchCV(
+    estimator=pipeline,
+    param_grid=parameters,
+    cv=cv,
+    scoring='f1_macro',
+    verbose=0,
+    n_jobs=-1
+)
 
-    print("\n--- SUBJECT-LEVEL RESULTS (Majority Vote) ---")
-    print(classification_report(subject_results['Actual'], subject_results['Predicted'], 
-                            target_names=['Healthy', 'FTD', 'AD']))
+search.fit(X_train, y_train)
+best_model = search.best_estimator_
 
-if __name__ == "__main__":
-    data = pd.read_csv("AD_Feature_Matrix.csv")
-    run_final_test(data)
+# Test prediction
+y_predict = best_model.predict(X_test)
 
-    
+# Cross-validation
+repeated_cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=42)
+cv_scores = cross_val_score(best_model, X, y, cv=repeated_cv, scoring='f1_macro', n_jobs=-1)
+
+# Output
+print(f"SVM Training size: {len(X_train)}")
+print(f"Accuracy Score: {accuracy_score(y_test, y_predict):.2%}")
+print(f"Optimal Parameters: {search.best_params_}")
+print("\nClassification Report:")
+print(classification_report(y_test, y_predict, zero_division=0))
+print(f"Cross Validation Mean F1 Macro: {cv_scores.mean():.4f}")
+
+joblib.dump(best_model, "alzheimers_svm_model.joblib")

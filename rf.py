@@ -1,41 +1,103 @@
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.svm import SVC
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, cross_val_predict
+import joblib
+
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    StratifiedKFold,
+    RepeatedStratifiedKFold,
+    cross_val_score
+)
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.pipeline import Pipeline
 
-data = pd.read_csv("AD_Feature_Matrix.csv")
-mi_columns = [c for c in data.columns if "PHI_" in c]
-data[mi_columns] = np.log1p(data[mi_columns])
+# Load feature matrix
+dFrame = pd.read_csv("Final_AD_Feature_Matrix.csv")
+dFrame.columns = dFrame.columns.str.strip()
 
-X = data.drop(columns = ['Subject_ID', 'Group']).dropna()
-y = data.loc[X.index, 'Group']
+# Features and target
+X = dFrame.drop(columns=['Subject_ID', 'Group'])
+y = dFrame['Group']
 
-pipeline_rf = Pipeline([
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+# Pipeline
+pipeline = Pipeline([
+    ('selector', VarianceThreshold(threshold=0.0)),
     ('scaler', StandardScaler()),
-    ('rf', RandomForestClassifier(random_state=42, class_weight="balanced"))
+    ('rf', RandomForestClassifier(
+        random_state=42,
+        class_weight="balanced_subsample"
+    ))
 ])
-parameters_rf = {
+
+# Parameter grid
+parameters = {
     'rf__n_estimators': [100, 200],
-    'rf__max_depth': [None, 10],
-    'rf__min_samples_split': [2, 5]
+    'rf__max_depth': [5, 7, 10],
+    'rf__min_samples_leaf': [1, 2],
+    'rf__min_samples_split': [2, 5],
+    'rf__max_features': ['sqrt']
 }
-skfold = StratifiedKFold(n_splits=5, shuffle = True, random_state=42)
-search_rf = GridSearchCV(pipeline_rf, param_grid=parameters_rf, cv=skfold, scoring='accuracy')
-search_rf.fit(X,y)
 
-cv_results_rf = cross_validate(search_rf.best_estimator_, X, y, cv=skfold, scoring = ['accuracy', 'f1_macro'])
+# Grid search
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-print("3-Class Random Forest Metrics:")
-print(f"Overall Accuracy: {cv_results_rf['test_accuracy'].mean():.2%}")
-print(f"F1 (Macro): {cv_results_rf['test_f1_macro'].mean():.2%}")
-y_pred = cross_val_predict(search_rf.best_estimator_, X, y, cv=skfold)
-cm = confusion_matrix(y, y_pred)
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Healthy', 'FTD', 'AD'])
-disp.plot(cmap=plt.cm.Blues)
-plt.title("Confusion Matrix")
-plt.show()
+search = GridSearchCV(
+    estimator=pipeline,
+    param_grid=parameters,
+    cv=cv,
+    scoring='f1_macro',
+    verbose=0,
+    n_jobs=-1
+)
+
+search.fit(X_train, y_train)
+
+best_model = search.best_estimator_
+
+# Test prediction
+y_predict = best_model.predict(X_test)
+
+# Cross-validation on full dataset
+repeated_cv = RepeatedStratifiedKFold(
+    n_splits=5,
+    n_repeats=10,
+    random_state=42
+)
+
+cv_scores = cross_val_score(
+    best_model,
+    X,
+    y,
+    cv=repeated_cv,
+    scoring='f1_macro',
+    n_jobs=-1
+)
+
+# Clean output
+print(f"Training size: {len(X_train)}")
+print(f"Testing size: {len(X_test)}")
+
+print(f"\nAccuracy Score: {accuracy_score(y_test, y_predict):.2%}")
+
+print(f"\nOptimal Parameters: {search.best_params_}")
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_predict, zero_division=0))
+
+print(f"Cross Validation Mean F1 Macro: {cv_scores.mean():.4f}")
+print(f"Cross Validation Std Dev: {cv_scores.std():.4f}")
+
+# Save full pipeline
+joblib.dump(best_model, "alzheimers_model.joblib")
