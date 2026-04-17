@@ -1,5 +1,10 @@
 # Data artifacts
 ds004504/
+ds004504_annex/
+ds004504_smoke/
+backend/ds004504/
+backend/ds004504_annex/
+backend/ds004504_smoke/
 *.fdt
 *.set
 
@@ -12,12 +17,16 @@ __pycache__/
 *.so
 .Python
 backend/venv/
+backend/.venv/
+backend/tools/
 backend/__pycache__/
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.coverage
 backend/htmlcov/
+backend/model/*.log
+backend/model/Final_AD_Feature_Matrix.csv
 
 # Node / frontend
 logs

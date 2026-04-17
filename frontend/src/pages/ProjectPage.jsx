@@ -8,7 +8,7 @@ const ProjectPage = () => {
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-700">Research Context</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">Project Context</h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-700 md:text-base">
-          Short project summary for team demos and documentation.
+          Project summary and clinical context for this tri-class EEG classifier.
         </p>
       </Panel>
 

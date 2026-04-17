@@ -6,7 +6,7 @@ const BreakdownPanel = ({ probabilityRows }) => {
   return (
     <Panel className="animate-lift-in [animation-delay:420ms]">
       <h3 className="text-lg font-semibold text-slate-900">Class Probability Breakdown</h3>
-      <p className="mt-1 text-sm text-slate-600">AD vs HC vs FTD distribution</p>
+      <p className="mt-1 text-sm text-slate-600">Probability distribution across AD, HC, and FTD.</p>
 
       <div className="mt-5 space-y-4">
         {probabilityRows.map((entry) => {
@@ -32,7 +32,7 @@ const BreakdownPanel = ({ probabilityRows }) => {
         })}
       </div>
 
-      <p className="mt-4 text-xs text-slate-500">Example output: 80% AD | 15% HC | 5% FTD</p>
+      <p className="mt-4 text-xs text-slate-500">Values shown are from the latest completed assessment.</p>
     </Panel>
   )
 }

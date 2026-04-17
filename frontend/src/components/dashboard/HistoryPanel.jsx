@@ -1,5 +1,5 @@
 import { CLASS_STYLES } from '../../constants/classStyles'
-import { MODE_LABELS } from '../../constants/modelConfig'
+import { SOURCE_LABELS } from '../../constants/modelConfig'
 import { formatPercent, formatTime } from '../../utils/formatters'
 import Panel from '../ui/Panel'
 
@@ -8,8 +8,8 @@ const HistoryPanel = ({ history, clearHistory }) => {
     <Panel className="animate-lift-in [animation-delay:620ms]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">Recent Runs</h3>
-          <p className="mt-1 text-sm text-slate-600">Quick glance history</p>
+          <h3 className="text-lg font-semibold text-slate-900">Recent Assessments</h3>
+          <p className="mt-1 text-sm text-slate-600">Latest local run history</p>
         </div>
 
         <button
@@ -26,7 +26,7 @@ const HistoryPanel = ({ history, clearHistory }) => {
         {history.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 w-full text-center">
-              No run history yet.
+              No assessments yet.
             </div>
           </div>
         ) : (
@@ -42,7 +42,7 @@ const HistoryPanel = ({ history, clearHistory }) => {
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span className={`rounded-full border px-2 py-1 font-semibold ${style.chip}`}>{item.prediction}</span>
                   <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-slate-600">
-                    {MODE_LABELS[item.mode]}
+                    {SOURCE_LABELS[item.source ?? 'backend']}
                   </span>
                   <span className="rounded-full border border-slate-200 bg-white px-2 py-1 font-mono text-slate-700">
                     {formatPercent(item.confidence)} confidence

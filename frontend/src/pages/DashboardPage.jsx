@@ -10,8 +10,6 @@ import { useInference } from '../context/InferenceContext'
 
 const DashboardPage = () => {
   const {
-    mode,
-    setMode,
     selectedFile,
     selectFile,
     clearSelection,
@@ -26,16 +24,15 @@ const DashboardPage = () => {
     probabilityRows,
     activeInsights,
     history,
+    backendStatus,
   } = useInference()
 
   return (
     <>
-      <HeroSection />
+      <HeroSection backendStatus={backendStatus} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <UploadPanel
-          mode={mode}
-          setMode={setMode}
           selectedFile={selectedFile}
           selectFile={selectFile}
           clearSelection={clearSelection}
@@ -46,7 +43,7 @@ const DashboardPage = () => {
           apiUrl={API_URL}
         />
 
-        <SummaryPanel result={result} mode={mode} />
+        <SummaryPanel result={result} />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">

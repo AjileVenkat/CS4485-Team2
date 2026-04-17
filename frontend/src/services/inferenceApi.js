@@ -19,7 +19,7 @@ export const requestLiveInference = async (file, endpoint = API_URL) => {
       detail = ''
     }
 
-    throw new Error(`Backend request failed (${response.status})${detail}`)
+    throw new Error(`Service request failed (${response.status})${detail}`)
   }
 
   return response.json()

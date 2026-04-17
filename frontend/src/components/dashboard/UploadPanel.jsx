@@ -1,12 +1,10 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ACCEPTED_EXTENSIONS } from '../../constants/modelConfig'
 import { formatFileSize } from '../../utils/formatters'
 import { classList } from '../../utils/classList'
 import Panel from '../ui/Panel'
 
 const UploadPanel = ({
-  mode,
-  setMode,
   selectedFile,
   selectFile,
   runClassification,
@@ -19,7 +17,18 @@ const UploadPanel = ({
   const fileInputRef = useRef(null)
   const [dragActive, setDragActive] = useState(false)
 
-  const acceptedLabel = '.set, .edf, .fif'
+  const acceptedLabel = ACCEPTED_EXTENSIONS.join(', ')
+
+  const docsUrl = useMemo(() => {
+    try {
+      const parsed = new URL(apiUrl)
+      parsed.pathname = '/docs'
+      parsed.search = ''
+      return parsed.toString()
+    } catch {
+      return ''
+    }
+  }, [apiUrl])
 
   const handleDrop = (event) => {
     event.preventDefault()
@@ -34,33 +43,28 @@ const UploadPanel = ({
     <Panel className="animate-lift-in [animation-delay:120ms]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">EEG Upload</h2>
-          <p className="mt-1 text-sm text-slate-600">Drop a file or browse manually.</p>
+          <h2 className="text-xl font-semibold text-slate-900">EEG File Upload</h2>
+          <p className="mt-1 text-sm text-slate-600">Drop a file or browse from your device.</p>
         </div>
 
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setMode('mock')}
-            className={classList(
-              'rounded-lg px-3 py-1.5 transition',
-              mode === 'mock' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900',
-            )}
-          >
-            Mock Demo
-          </button>
+        <span className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+          Live Service
+        </span>
+      </div>
 
-          <button
-            type="button"
-            onClick={() => setMode('live')}
-            className={classList(
-              'rounded-lg px-3 py-1.5 transition',
-              mode === 'live' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900',
-            )}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white/85 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Service Endpoint</p>
+        <p className="mt-1 break-all font-mono text-xs text-slate-700">{apiUrl}</p>
+        {docsUrl ? (
+          <a
+            href={docsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex text-xs font-semibold text-cyan-700 transition hover:text-cyan-800"
           >
-            Live API
-          </button>
-        </div>
+            Open Service Docs
+          </a>
+        ) : null}
       </div>
 
       <div

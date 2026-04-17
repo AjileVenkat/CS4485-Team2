@@ -36,6 +36,6 @@ export const METRIC_DEFINITIONS = [
   },
   {
     name: 'Risk Score',
-    description: 'Optional calibrated score from backend, displayed as pending when not provided.',
+    description: 'Optional calibrated score from the service, displayed as pending when not provided.',
   },
 ]

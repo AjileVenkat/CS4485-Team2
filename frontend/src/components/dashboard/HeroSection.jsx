@@ -1,14 +1,30 @@
 import Panel from '../ui/Panel'
 
-const HeroSection = () => {
-  const signalTrend = [28, 34, 31, 42, 39, 47, 44, 56, 52, 60, 57, 66]
-  const trendPoints = signalTrend
-    .map((value, index) => {
-      const x = (index / (signalTrend.length - 1)) * 100
-      const y = 100 - value
-      return `${x},${y}`
-    })
-    .join(' ')
+const HeroSection = ({ backendStatus }) => {
+  const statusCopy = {
+    idle: {
+      label: 'Idle',
+      chipClass: 'border-slate-300 bg-slate-100 text-slate-700',
+      message: 'Ready for a new EEG assessment.',
+    },
+    processing: {
+      label: 'Processing',
+      chipClass: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+      message: 'Analysis is in progress. Results will refresh when complete.',
+    },
+    ready: {
+      label: 'Ready',
+      chipClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      message: 'Latest assessment is ready for review and export.',
+    },
+    error: {
+      label: 'Error',
+      chipClass: 'border-rose-200 bg-rose-50 text-rose-700',
+      message: 'The run could not be completed. Please verify the file and retry.',
+    },
+  }
+
+  const activeStatus = statusCopy[backendStatus] ?? statusCopy.idle
 
   return (
     <Panel className="relative overflow-hidden px-6 py-8 animate-lift-in md:px-10 md:py-10">
@@ -22,61 +38,51 @@ const HeroSection = () => {
           </p>
 
           <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-            Upload EEG data, run tri-class inference, and visualize dementia risk breakdowns
+            Clinical EEG classification dashboard
           </h1>
 
           <p className="mt-4 max-w-3xl text-sm text-slate-700 md:text-base">
-            Use this dashboard to run EEG classification, track recent runs, and export results.
+            Upload EEG files, run tri-class classification (AD, HC, FTD), review confidence and risk score, and keep
+            a local history of recent assessments.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.12em] text-slate-700">
             <span className="rounded-full border border-cyan-200 bg-cyan-100/80 px-3 py-1">
-              Tri-class: HC vs FTD vs AD
+              Tri-Class: AD | HC | FTD
             </span>
             <span className="rounded-full border border-orange-200 bg-orange-100/80 px-3 py-1">
-              Real-time Inference Feedback
+              Session History
             </span>
             <span className="rounded-full border border-slate-300 bg-white/80 px-3 py-1">
-              Mock + Live Modes
+              JSON Report Export
             </span>
           </div>
         </div>
 
-        <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm">
+        <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">Signal Chart</p>
-            <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
-              Mock Demo
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">Session Status</p>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${activeStatus.chipClass}`}>
+              {activeStatus.label}
             </span>
           </div>
 
-          <div className="my-3 flex-1 flex flex-col justify-center">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2 flex flex-col justify-center">
-              <svg viewBox="0 0 100 100" className="h-28 w-full" preserveAspectRatio="none" aria-label="signal trend">
-                <polyline
-                  fill="none"
-                  stroke="#06b6d4"
-                  strokeWidth="2.4"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  points={trendPoints}
-                />
-              </svg>
-            </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+            <p className="text-sm text-slate-700">{activeStatus.message}</p>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
             <div className="rounded-lg border border-slate-200 bg-white p-2 text-center">
-              <p className="font-mono text-slate-500">Epochs</p>
-              <p className="mt-1 font-semibold text-slate-800">12</p>
+              <p className="font-mono text-slate-500">Submission</p>
+              <p className="mt-1 font-semibold text-slate-800">EEG File Upload</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-2 text-center">
-              <p className="font-mono text-slate-500">Window</p>
-              <p className="mt-1 font-semibold text-slate-800">2s</p>
+              <p className="font-mono text-slate-500">Results</p>
+              <p className="mt-1 font-semibold text-slate-800">Class Probabilities</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-2 text-center">
-              <p className="font-mono text-slate-500">Quality</p>
-              <p className="mt-1 font-semibold text-slate-800">Stable</p>
+              <p className="font-mono text-slate-500">Reporting</p>
+              <p className="mt-1 font-semibold text-slate-800">JSON Summary Export</p>
             </div>
           </div>
         </div>

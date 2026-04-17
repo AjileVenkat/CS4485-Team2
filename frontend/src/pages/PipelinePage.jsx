@@ -34,7 +34,7 @@ const PipelinePage = () => {
 
 			<Panel className="animate-lift-in [animation-delay:380ms]">
 				<h2 className="text-xl font-semibold text-slate-900">Operational Metrics</h2>
-				<p className="mt-2 text-sm text-slate-600">Production-oriented metrics surfaced in this frontend for demos and QA.</p>
+				<p className="mt-2 text-sm text-slate-600">Key metrics shown on the dashboard after each completed run.</p>
 
 				<div className="mt-4 grid gap-3 md:grid-cols-3">
 					{METRIC_DEFINITIONS.map((metric) => (

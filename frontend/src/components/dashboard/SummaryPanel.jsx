@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { CLASS_STYLES } from '../../constants/classStyles'
-import { MODE_LABELS } from '../../constants/modelConfig'
+import { SOURCE_LABELS } from '../../constants/modelConfig'
 import { classList } from '../../utils/classList'
 import { formatPercent, formatTime } from '../../utils/formatters'
 import { buildRunReport, downloadJsonFile, makeReportFileName } from '../../utils/reporting'
 import Panel from '../ui/Panel'
 
-const SummaryPanel = ({ result, mode }) => {
+const SummaryPanel = ({ result }) => {
   const [copyMessage, setCopyMessage] = useState('')
-  const selectedMode = MODE_LABELS[result?.mode ?? mode]
+  const selectedSource = SOURCE_LABELS[result?.source ?? 'backend']
   const predictionTone = CLASS_STYLES[result?.prediction]?.tone ?? CLASS_STYLES.AD.tone
   const reportPayload = useMemo(() => (result ? buildRunReport(result) : null), [result])
 
@@ -44,15 +44,15 @@ const SummaryPanel = ({ result, mode }) => {
   return (
     <Panel className="animate-lift-in [animation-delay:220ms]">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-slate-900">Inference Summary</h2>
+        <h2 className="text-xl font-semibold text-slate-900">Assessment Summary</h2>
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
-          {selectedMode}
+          {selectedSource}
         </span>
       </div>
 
       {!result ? (
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-          Run classification to populate risk score, confidence, and prediction class.
+          Run classification to view predicted class, confidence, and risk score.
         </div>
       ) : (
         <>

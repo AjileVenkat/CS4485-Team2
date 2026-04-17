@@ -1,37 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { INSIGHT_LIBRARY } from '../constants/insights'
 import { ACCEPTED_EXTENSIONS, MAX_HISTORY_ITEMS } from '../constants/modelConfig'
 import { requestLiveInference } from '../services/inferenceApi'
-import {
-  buildResult,
-  generateMockResponse,
-  sleep,
-  stageFromProgress,
-} from '../utils/inferenceHelpers'
+import { buildResult, stageFromProgress } from '../utils/inferenceHelpers'
 
 const InferenceContext = createContext(null)
 
 const STORAGE_KEYS = {
-  mode: 'neuroscore.mode',
   history: 'neuroscore.history',
-}
-
-const readStoredMode = () => {
-  if (typeof window === 'undefined') {
-    return 'mock'
-  }
-
-  try {
-    const storedMode = window.localStorage.getItem(STORAGE_KEYS.mode)
-    if (storedMode === 'mock' || storedMode === 'live') {
-      return storedMode
-    }
-  } catch {
-    // Fall back to default mode when storage is blocked.
-  }
-
-  return 'mock'
 }
 
 const readStoredHistory = () => {
@@ -54,7 +30,6 @@ const readStoredHistory = () => {
 }
 
 export const InferenceProvider = ({ children }) => {
-  const [mode, setMode] = useState(readStoredMode)
   const [selectedFile, setSelectedFile] = useState(null)
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -62,14 +37,6 @@ export const InferenceProvider = ({ children }) => {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [history, setHistory] = useState(readStoredHistory)
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEYS.mode, mode)
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [mode])
 
   useEffect(() => {
     try {
@@ -102,14 +69,28 @@ export const InferenceProvider = ({ children }) => {
   }, [result])
 
   const activeInsights = useMemo(() => {
-    if (!result) {
+    if (!result || !Array.isArray(result.insights)) {
       return []
     }
 
-    return INSIGHT_LIBRARY[result.prediction] ?? []
+    return result.insights
   }, [result])
 
-  const effectiveMode = result?.mode ?? mode
+  const backendStatus = useMemo(() => {
+    if (isRunning) {
+      return 'processing'
+    }
+
+    if (error) {
+      return 'error'
+    }
+
+    if (result) {
+      return 'ready'
+    }
+
+    return 'idle'
+  }, [error, isRunning, result])
 
   const selectFile = useCallback((file) => {
     if (!file) {
@@ -125,7 +106,7 @@ export const InferenceProvider = ({ children }) => {
     const isCommonEegFile = ACCEPTED_EXTENSIONS.some((extension) => normalizedName.endsWith(extension))
 
     if (!isCommonEegFile) {
-      setWarning('This extension is uncommon for EEG data, but you can still run the demo pipeline.')
+      setWarning('This file extension is uncommon for EEG uploads. The service may reject unsupported formats.')
     }
   }, [])
 
@@ -150,9 +131,8 @@ export const InferenceProvider = ({ children }) => {
     }
 
     setIsRunning(true)
-    setProgress(4)
+    setProgress(6)
     setError('')
-    setWarning('')
     setResult(null)
 
     const progressTimer = window.setInterval(() => {
@@ -166,26 +146,11 @@ export const InferenceProvider = ({ children }) => {
     }, 480)
 
     try {
-      let outputMode = mode
-      let payload
-
-      if (mode === 'live') {
-        try {
-          payload = await requestLiveInference(selectedFile)
-        } catch {
-          outputMode = 'mock-fallback'
-          setWarning('Live backend is unavailable. Showing mock output so you can keep testing.')
-          await sleep(1800)
-          payload = generateMockResponse(selectedFile.name)
-        }
-      } else {
-        await sleep(3600)
-        payload = generateMockResponse(selectedFile.name)
-      }
+      const payload = await requestLiveInference(selectedFile)
 
       setProgress(100)
 
-      const normalized = buildResult(payload, selectedFile.name, outputMode)
+      const normalized = buildResult(payload, selectedFile.name)
       setResult(normalized)
       setHistory((previous) => [normalized, ...previous].slice(0, MAX_HISTORY_ITEMS))
     } catch (runError) {
@@ -198,13 +163,10 @@ export const InferenceProvider = ({ children }) => {
       window.clearInterval(progressTimer)
       setIsRunning(false)
     }
-  }, [isRunning, mode, selectedFile])
+  }, [isRunning, selectedFile])
 
   const value = useMemo(
     () => ({
-      mode,
-      effectiveMode,
-      setMode,
       selectedFile,
       selectFile,
       clearSelection,
@@ -219,16 +181,16 @@ export const InferenceProvider = ({ children }) => {
       history,
       probabilityRows,
       activeInsights,
+      backendStatus,
     }),
     [
       activeInsights,
+      backendStatus,
       clearHistory,
       clearSelection,
-      effectiveMode,
       error,
       history,
       isRunning,
-      mode,
       probabilityRows,
       progress,
       result,

@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import numpy as np
 import mne
-import matplotlib.pyplot as plt
 from sklearn.feature_selection import mutual_info_regression
 from mne.time_frequency import psd_array_welch
 
@@ -52,10 +51,15 @@ def feature_extraction(e_data, id, md_row, sfreq):
     # Focus on finding relative power for every band in each important channel (FTD vs AD focused)
     for channel in ['Fp1', 'Fp2', 'F3', 'F4', 'T3', 'T4', 'P3', 'P4']:
         ind = channels.index(channel)
-        feats[f'Theta_{channel}'] = psds[ind, theta].sum() / total_powers[ind]
-        feats[f'Alpha_{channel}'] = psds[ind, alpha].sum() / total_powers[ind]
-        feats[f'Beta_{channel}'] = psds[ind, beta].sum() / total_powers[ind]
-        feats[f'Gamma_{channel}'] = psds[ind, gamma].sum() / total_powers[ind]
+        denom = total_powers[ind]
+        if np.isfinite(denom) and abs(denom) > 1e-12:
+            inv_denom = 1.0 / denom
+        else:
+            inv_denom = 0.0
+        feats[f'Theta_{channel}'] = psds[ind, theta].sum() * inv_denom
+        feats[f'Alpha_{channel}'] = psds[ind, alpha].sum() * inv_denom
+        feats[f'Beta_{channel}'] = psds[ind, beta].sum() * inv_denom
+        feats[f'Gamma_{channel}'] = psds[ind, gamma].sum() * inv_denom
         feats[f'Complexity_{channel}'] = calc_complexity(rounded[ind])
  
     # For each pair, find the mutual info to capture non linear relationships
@@ -77,11 +81,34 @@ def feature_extraction(e_data, id, md_row, sfreq):
             feats['Gender'] = 0
         else:
             feats['Gender'] = 1
+    else:
+        feats['Age'] = 63
+        feats['Gender'] = 0
     return feats
+
+# Backwards compatibility for older imports.
+features_extraction = feature_extraction
 
 if __name__ == "__main__":
     # Define paths for the used data and participants.tsv
-    root_dir = "ds004504"
+    candidate_dirs = [
+        "ds004504_annex",
+        "ds004504",
+        os.path.join(os.path.dirname(__file__), "..", "ds004504_annex"),
+        os.path.join(os.path.dirname(__file__), "..", "ds004504"),
+    ]
+
+    root_dir = None
+    for candidate in candidate_dirs:
+        derivatives_candidate = os.path.join(candidate, "derivatives")
+        participants_candidate = os.path.join(candidate, "participants.tsv")
+        if os.path.isdir(derivatives_candidate) and os.path.isfile(participants_candidate):
+            root_dir = candidate
+            break
+
+    if root_dir is None:
+        raise FileNotFoundError("Dataset folder not found. Expected ds004504 or ds004504_annex")
+
     derivatives_dir = os.path.join(root_dir, "derivatives")
     participants_dir = os.path.join(root_dir, "participants.tsv")
     rows = []
@@ -93,11 +120,26 @@ if __name__ == "__main__":
 
         sub_num = int(i.split('-')[1])
         path = os.path.join(derivatives_dir, i, 'eeg', f"{i}_task-eyesclosed_eeg.set")
-        if os.path.exists(path):
-            print(f"{i}: Extract and epoch.")
+        fallback_path = os.path.join(root_dir, i, 'eeg', f"{i}_task-eyesclosed_eeg.set")
+        if not os.path.exists(path) and not os.path.exists(fallback_path):
+            print(f"Skipping {i}: EEG file not found in derivatives or root EEG folder")
+            continue
+
+        print(f"{i}: Extract and epoch.")
+
+        try:
+            # Prefer derivatives, but fall back to root EEG if derivatives are unreadable.
+            read_path = path if os.path.exists(path) else fallback_path
+            try:
+                raw_data = mne.io.read_raw_eeglab(read_path, preload=True, verbose=False)
+            except Exception as exc:
+                if read_path != fallback_path and os.path.exists(fallback_path):
+                    print(f"{i}: derivatives unreadable ({exc}). Falling back to root EEG file.")
+                    raw_data = mne.io.read_raw_eeglab(fallback_path, preload=True, verbose=False)
+                else:
+                    raise
 
             # Perform average referencing, bandpass filter, and resample to further clean data
-            raw_data = mne.io.read_raw_eeglab(path, preload=True, verbose=False)
             raw_data.set_eeg_reference(ref_channels='average', verbose=False)
             raw_data.filter(l_freq=0.5, h_freq=45, method='iir', iir_params=dict(order=2, ftype='butter'), phase='zero', verbose=False)
             raw_data.resample(128, verbose=False)
@@ -123,6 +165,9 @@ if __name__ == "__main__":
                 else:
                     subject_feats['Group'] = 1
                 rows.append(subject_feats)
+        except Exception as exc:
+            print(f"Skipping {i}: {exc}")
+            continue
     
     # Form matrix with rows
     feature_matrix = pd.DataFrame(rows)

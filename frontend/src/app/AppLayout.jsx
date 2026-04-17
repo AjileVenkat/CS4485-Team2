@@ -3,15 +3,15 @@ import TopNav from '../components/navigation/TopNav'
 
 const AppLayout = () => {
   return (
-    <div className="relative min-h-screen px-4 py-8 md:px-8 md:py-10">
+    <div className="relative min-h-screen px-4 pb-8 pt-28 md:px-8 md:pb-10 md:pt-32">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute left-[-12rem] top-[10rem] h-[22rem] w-[22rem] rounded-full bg-cyan-200/30 blur-3xl" />
         <div className="absolute right-[-8rem] top-[16rem] h-[20rem] w-[20rem] rounded-full bg-orange-200/30 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <TopNav />
+      <TopNav />
 
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <main className="space-y-6">
           <Outlet />
         </main>

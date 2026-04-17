@@ -2,17 +2,17 @@ export const PROJECT_SECTIONS = [
   {
     title: 'Idea',
     content:
-      'This app accepts patient EEG data, runs it through a tri-class ML pipeline, and returns a cognitive progression assessment with transparent class metrics.',
+      'This website accepts EEG files, runs tri-class classification, and returns class-level probabilities with a clear assessment summary.',
   },
   {
     title: 'Clinical Motivation',
     content:
-      'Alzheimer disease progression is associated with amyloid-beta and tau pathology and leads to neurodegeneration, especially affecting memory pathways. Early, signal-driven screening can help triage and monitoring workflows.',
+      'Alzheimer disease progression is associated with neurodegenerative changes that can be reflected in EEG patterns. Early signal-driven assessment can support triage and monitoring workflows.',
   },
   {
     title: 'Literature Cues',
     content:
-      'Many studies report higher delta and theta activity and lower alpha and beta activity in AD groups. We use this pattern as context when reading outputs.',
+      'Prior studies often report higher delta and theta activity and lower alpha and beta activity in AD cohorts. This context helps interpret probability outputs.',
   },
   {
     title: 'Dataset Direction',
@@ -22,11 +22,11 @@ export const PROJECT_SECTIONS = [
   {
     title: 'Model Architecture',
     content:
-      'Classifier strategy targets Healthy vs MCI-like patterns vs Alzheimer progression behavior through tri-class probability outputs that can be integrated with clinician review.',
+      'The model returns tri-class probabilities across Healthy Control, Frontotemporal Dementia, and Alzheimer categories for clinician-guided review.',
   },
   {
     title: 'Operational Insight',
     content:
-      'Checking consistency across repeated runs is usually more useful than relying on one prediction.',
+      'Consistency across repeated assessments is generally more informative than relying on a single run.',
   },
 ]
