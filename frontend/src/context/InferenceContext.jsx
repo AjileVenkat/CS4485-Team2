@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ACCEPTED_EXTENSIONS, MAX_HISTORY_ITEMS } from '../constants/modelConfig'
-import { requestLiveInference } from '../services/inferenceApi'
+import { requestLiveInference, requestServiceHealth } from '../services/inferenceApi'
 import { buildResult, stageFromProgress } from '../utils/inferenceHelpers'
 
 const InferenceContext = createContext(null)
@@ -146,6 +146,11 @@ export const InferenceProvider = ({ children }) => {
     }, 480)
 
     try {
+      const health = await requestServiceHealth()
+      if (health?.status !== 'ok') {
+        throw new Error('Service is not ready. Please retry in a moment.')
+      }
+
       const payload = await requestLiveInference(selectedFile)
 
       setProgress(100)

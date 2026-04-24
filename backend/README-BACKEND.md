@@ -3,7 +3,7 @@
 ## 0) Activate virtual environment (Windows PowerShell)
 
 ```powershell
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ```
 
 ## 1) Install dependencies
@@ -22,9 +22,6 @@ This project now includes a downloader script using `openneuro-py`:
 python download_openneuro_dataset.py --dataset ds004504 --target-dir ds004504
 ```
 
-Notes:
-- This downloads top-level BIDS metadata files.
-- Re-running the same command resumes interrupted downloads.
 
 ## 2b) Download full EEG files (`.set` / `.fdt`)
 
@@ -37,8 +34,6 @@ Then run:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\download_openneuro_full.ps1
 ```
-
-This clones into `backend/ds004504_annex`, checks out snapshot `1.0.8`, enables the `s3-PUBLIC` remote, and runs `git-annex get .`.
 
 ## 3) (Optional) Rebuild feature matrix from dataset
 
@@ -68,5 +63,25 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 Then open:
 - API docs: `http://127.0.0.1:8000/docs`
+- Health endpoint: `http://127.0.0.1:8000/health`
 
-Upload an EEGLAB `.set` file to `/predict`.
+## 6) API contract used by the frontend
+
+- `POST /predict`
+	- Upload form-data field: `file`
+	- Supported formats: `.set`, `.edf`, `.fif`, `.csv`, `.txt`
+	- Returns: `status`, `prediction`, `risk_score`, `all_probs`, `insights`
+
+- `GET /health`
+	- Returns service and model metadata for monitoring.
+
+## 7) Backend structure
+
+The backend is organized into:
+
+- `app/api/routes/` for endpoints
+- `app/services/` for parsing, feature extraction, model inference, and insights
+- `app/schemas/` for API response models
+- `app/core/` for settings and constants
+
+`main.py` remains the entrypoint (`uvicorn main:app`) and imports the organized app package.
