@@ -1,0 +1,19 @@
+### Python
+__pycache__/
+*.pyc
+venv/
+.env
+*.egg-info/
+
+### Node
+node_modules/
+build/
+.env.local
+.env.production
+
+### Dataset (too large for git — use symlink or env var)
+ds004504/
+
+### Misc
+.DS_Store
+*.log
